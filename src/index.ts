@@ -13,7 +13,7 @@ export default {
 
       // Если prompt не указан, используем значение по умолчанию
       if (!prompt) {
-        prompt = "cyberpunk cat";
+        prompt = "cyberpunk dog";
       }
 
       const inputs = {
