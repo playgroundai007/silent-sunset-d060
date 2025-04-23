@@ -1,42 +1,57 @@
+interface Env {
+  AI: any;
+}
+
 export default {
   async fetch(request: Request, env: Env) {
-    try {
-      // Получаем prompt из query string (для GET запросов)
-      const url = new URL(request.url);
-      let prompt = url.searchParams.get('prompt');
+    // Разрешаем только GET или POST запросы
+    if (!['GET', 'POST'].includes(request.method)) {
+      return new Response('Method Not Allowed', { status: 405 });
+    }
 
-      // Если prompt не в query string, пробуем получить из тела запроса (для POST)
-      if (!prompt && request.method === 'POST') {
+    let prompt = "cyberpunk cat"; // значение по умолчанию
+
+    // Пытаемся получить prompt из query параметров (GET)
+    const url = new URL(request.url);
+    const queryPrompt = url.searchParams.get('prompt');
+    if (queryPrompt) {
+      prompt = queryPrompt;
+    }
+    // Или из тела запроса (POST)
+    else if (request.method === 'POST') {
+      try {
         const body = await request.json();
-        prompt = body.prompt;
+        if (body.prompt) {
+          prompt = body.prompt;
+        }
+      } catch (e) {
+        console.error('Error parsing JSON body:', e);
       }
+    }
 
-      // Если prompt не указан, используем значение по умолчанию
-      if (!prompt) {
-        prompt = "cyberpunk dog";
-      }
-
-      const inputs = {
-        prompt: prompt,
-      };
-
+    try {
       const response = await env.AI.run(
         "@cf/stabilityai/stable-diffusion-xl-base-1.0",
-        inputs,
+        { prompt }
       );
 
       return new Response(response, {
         headers: {
           "content-type": "image/png",
-        },
+          "cache-control": "public, max-age=3600" // кешируем на 1 час
+        }
       });
     } catch (error) {
-      return new Response(JSON.stringify({ error: error.message }), {
-        status: 500,
-        headers: {
-          "content-type": "application/json",
-        },
-      });
+      return new Response(
+        JSON.stringify({ 
+          error: "Image generation failed",
+          details: error.message 
+        }),
+        { 
+          status: 500,
+          headers: { "content-type": "application/json" }
+        }
+      );
     }
-  },
+  }
 } satisfies ExportedHandler<Env>;
